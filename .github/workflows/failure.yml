@@ -1,4 +1,0 @@
- name: Run tests
-      continue-on-error: true
-      run: |  
-        PLAYWRIGHT_JUNIT_OUTPUT_NAME=xray-report.xml npx playwright test
