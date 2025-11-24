@@ -1,6 +1,4 @@
-test('renders something', async () => {
+test('renders AI topic', () => {
   render(<App />);
-
-  const element = await screen.findByText(/learn react/i);
-  expect(element).toBeInTheDocument();
+  expect(screen.getByText(/Artificial Intelligence/i)).toBeInTheDocument();
 });
