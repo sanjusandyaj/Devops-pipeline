@@ -1,3 +1,5 @@
+name: Node.js CI
+
 on:
   push:
     branches: [ main ]
@@ -15,85 +17,43 @@ on:
         default: ''
         required: true
         type: string
-
 jobs:
-  tests:
+  build:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [20.x]   # Use stable Node for Jest + Playwright
+        node-version: [20.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - uses: actions/checkout@v2
+    - name: Output Inputs
+      run: echo "${{ toJSON(github.event.inputs) }}"
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
-
-    # ---------------------------
-    #  INSTALL DEPENDENCIES
-    # ---------------------------
-    - name: Install Dependencies
-      run: npm ci
-
-    # ---------------------------
-    #  RUN JEST UNIT TESTS
-    # ---------------------------
-    - name: Install Jest JUnit Reporter
-      run: npm install --save-dev jest-junit
-
-    - name: Run Jest Tests
-      run: |
-        npm test -- --ci --reporters=default --reporters=jest-junit
-      env:
-        JEST_JUNIT_OUTPUT: jest-report.xml
-
-    - name: Show Jest Report
-      run: cat jest-report.xml
-
-    # ---------------------------
-    #  RUN PLAYWRIGHT TESTS
-    # ---------------------------
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
-
-    - name: Run Playwright Tests
+    - run: |
+        npm install
+        npm i -D @playwright/test
+        npx playwright install 
+    - name: Run tests
       continue-on-error: true
+      run: |  
+        PLAYWRIGHT_JUNIT_OUTPUT_NAME=xray-report.xml npx playwright test
+    - name: Output results file
       run: |
-        PLAYWRIGHT_JUNIT_OUTPUT_NAME=playwright-report.xml \
-        npx playwright test --reporter=junit
-
-    - name: Show Playwright Report
-      run: cat playwright-report.xml
-
-    # ---------------------------
-    #  UPLOAD TO XRAY
-    # ---------------------------
-    - name: Import Playwright Results to Xray
+        cat xray-report.xml
+    - name: "Import results to Xray"
       uses: mikepenz/xray-action@v2.3.0
       with:
-        username: ${{ secrets.JIRA_USERNAME }}
-        password: ${{ secrets.JIRA_PASSWORD }}
-        xrayCloud: "false"
-        xrayBaseUrl: ${{ secrets.JIRA_BASEURL }}
-        testFormat: "junit"
-        testPaths: "playwright-report.xml"
-        testExecKey: "${{ inputs.testExecKey }}"
-        projectKey: "${{ inputs.projectKey }}"
-        testEnvironments: "NODE_${{ matrix.node-version }}"
-
-    # Optional: Upload Jest results too
-    - name: Import Jest Results to Xray
-      uses: mikepenz/xray-action@v2.3.0
-      with:
-        username: ${{ secrets.JIRA_USERNAME }}
-        password: ${{ secrets.JIRA_PASSWORD }}
-        xrayCloud: "false"
-        xrayBaseUrl: ${{ secrets.JIRA_BASEURL }}
-        testFormat: "junit"
-        testPaths: "jest-report.xml"
-        testExecKey: "${{ inputs.testExecKey }}"
-        projectKey: "${{ inputs.projectKey }}"
-        testEnvironments: "NODE_${{ matrix.node-version }}_JEST"
+         username: ${{ secrets.JIRA_USERNAME }}
+         password: ${{ secrets.JIRA_PASSWORD }}
+         xrayCloud: "false"
+         xrayBaseUrl: ${{ secrets.JIRA_BASEURL }}
+         testFormat: "junit"
+         testPaths: "**/xray-report.xml"
+         testExecKey: "${{ inputs.testExecKey }}"
+         projectKey: "${{ inputs.projectKey }}"
+         testEnvironments: "NODE_${{ matrix.node-version }}"
